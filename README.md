@@ -1,4 +1,4 @@
-Run a Docker container, with the current directory mounted.
+Run a Docker container, as the current user, with the current directory mounted.
 
 Create a separate `HOME` directory in `onc-home` that can be used between runs.
 
@@ -62,4 +62,13 @@ Date:   Fri Jun 21 05:51:06 2019 +0100
 
     Setup home directory
 jon:~ $
+```
+
+If the last name component of the Docker image starts with `.` use the
+image built from a Dockerfile:
+
+```
+jon:~ $ onc .          # build and run ./Dockerfile image
+jon:~ $ onc .build     # build and run ./Dockerfile.build image
+jon:~ $ onc ~/other/.  # build and run ~/other/Dockerfile image
 ```
