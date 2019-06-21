@@ -23,6 +23,22 @@ else
   commit_name=${image_name}
 fi
 
+userid=$(id --user)
+groupid=$(id --group)
+username=$(id --user --name)
+groups_adds=
+for group in $(id --groups); do
+  if [ ${group} != ${groupid} ]; then
+    groups_adds="${groups_adds} --group-add ${group}"
+  fi
+done
+
+tmpdir=/tmp/onc.$$
+mkdir ${tmpdir}
+chmod 700 ${tmpdir}
+cat > ${tmpdir}/passwd <<EOF
+${username}:x:${userid}:${groupid}:${username},,,:${homedir}:/bin/bash
+EOF
 
 workdir=$(pwd)
 
@@ -42,31 +58,24 @@ EOF
   git -C ${homedir} commit --quiet --message='Setup home directory'
 fi
 
-userid=`id --user`
-groupid=`id --group`
-groups_adds=
-for group in $(id --groups); do
-  if [ ${group} != ${groupid} ]; then
-    groups_adds="${groups_adds} --group-add ${group}"
-  fi
-done
-
 docker run -it --rm --user=${userid}:${groupid} ${groups_adds} \
   --mount type=bind,src=${workdir},dst=${workdir} -w=${workdir} \
   --mount type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock \
-  --mount type=bind,src=/etc/passwd,dst=/etc/passwd,readonly \
+  --mount type=bind,src=${tmpdir}/passwd,dst=/etc/passwd,readonly \
   --mount type=bind,src=/etc/shadow,dst=/etc/shadow,readonly \
   --mount type=bind,src=/etc/group,dst=/etc/group,readonly \
   --mount type=bind,src=/etc/gshadow,dst=/etc/gshadow,readonly \
   --mount type=bind,src=/etc/sudoers,dst=/etc/sudoers,readonly \
   --network host \
-  --env "HOME=${workdir}/onc-home" \
+  --env "HOME=${homedir}" \
   --env "ONC_IMAGE_NAME=${image_name}" \
   --env "ENV=${homedir}/.profile" \
   --env "SHINIT=${homedir}/.profile" \
   --env "GOPATH=${homedir}/gopath" \
   --env "GOBIN=${workdir}/bin" \
 	${image_name} "${@}"
+
+rm -r ${tmpdir}
 
 if [ "${@}" ]; then
   args=$(printf '%q ' "${@}")
