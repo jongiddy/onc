@@ -1,0 +1,63 @@
+#!/bin/bash
+
+set -e
+
+CONTAINER=$1
+if [ -z "${CONTAINER}" ];
+then
+    echo "Must specify a container" >&2
+    exit 1
+fi
+shift
+
+workdir=$(pwd)
+
+homedir=${workdir}/onc-home
+if [ ! -d ${homedir} ]; then
+  mkdir ${homedir}
+  git -C ${homedir} init --quiet
+  cat > ${homedir}/.bashrc <<EOF
+export PATH=\${PATH}:${workdir}/bin
+export PS1="\${ONCONTAINER}:\\\${PWD#*} $ "
+EOF
+  cat > ${homedir}/.profile <<EOF
+export PATH=\${PATH}:${workdir}/bin
+export PS1="\${ONCONTAINER}:\\\${PWD#*} $ "
+EOF
+  git -C ${homedir} add --all
+  git -C ${homedir} commit --quiet --message='Setup home directory'
+fi
+
+userid=`id -u`
+groupid=`id -g`
+
+docker run -it --rm --user=${userid}:${groupid} \
+  --mount type=bind,src=${workdir},dst=${workdir} -w=${workdir} \
+  --mount type=bind,src=/etc/passwd,dst=/etc/passwd,readonly \
+  --mount type=bind,src=/etc/shadow,dst=/etc/shadow,readonly \
+  --mount type=bind,src=/etc/group,dst=/etc/group,readonly \
+  --mount type=bind,src=/etc/sudoers,dst=/etc/sudoers,readonly \
+  --network host \
+  --env "HOME=${workdir}/onc-home" \
+  --env "ONCONTAINER=${CONTAINER}" \
+  --env "ENV=${homedir}/.profile" \
+  --env "SHINIT=${homedir}/.profile" \
+  --env "GOPATH=${homedir}/gopath" \
+  --env "GOBIN=${workdir}/bin" \
+	${CONTAINER} "${@}"
+
+if [ "${@}" ]; then
+  args=$(printf '%q ' "${@}")
+else
+  args=''
+fi
+git -C ${homedir} add --all
+cmds=
+if [ -r ${homedir}/.bash_history ]; then
+  cmds=$(git -C ${homedir} diff --staged --unified=0 .bash_history | sed -e '1,/^@@/d' )
+fi
+if [ ! "${cmds}" -a -r ${homedir}/.ash_history ]; then
+  cmds=$(git -C ${homedir} diff --staged --unified=0 .ash_history | sed -e '1,/^@@/d' )
+fi
+git -C ${homedir} commit --quiet --allow-empty --message="${CONTAINER} ${args}
+${cmds}"
