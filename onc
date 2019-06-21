@@ -5,29 +5,22 @@ set -e
 image_name=$1
 if [ -z "${image_name}" ];
 then
-    echo "Must specify a container image" >&2
+    echo "Expecting a container image or Dockerfile" >&2
     exit 1
 fi
 shift
 
-# split container name into name components
-IFS=/ read -ra image_name_components <<< "${image_name}"
-
-last_name_component=${image_name_components[-1]}
-if [[ ${last_name_component} == .* ]]; then
-  container_label=${last_name_component}
-  if [[ ${last_name_component} == . ]]; then
-    last_name_component=
+if [[ ${image_name} == .* ]] || [[ ${image_name} == /* ]]; then
+  Dockerfile=$(python -c 'import os,sys; print os.path.abspath(sys.argv[1])' ${image_name})
+  if [[ ! -f ${Dockerfile} ]]; then
+    echo "Expecting a container image or Dockerfile" >&2
+    exit 1
   fi
-  image_name_components[-1]=Dockerfile${last_name_component}
-  filename=$(printf "/%s" "${image_name_components[@]}")
-  Dockerfile=$(python -c 'import os,sys; print os.path.abspath(sys.argv[1])' ${filename:1})
   commit_name=${Dockerfile}
   image_name=$(echo ${Dockerfile:1} | tr A-Z a-z)
   docker build --file ${Dockerfile} --tag ${image_name} $(dirname ${Dockerfile})
 else
   commit_name=${image_name}
-  container_label=${image_name}
 fi
 
 
@@ -39,11 +32,11 @@ if [ ! -d ${homedir} ]; then
   git -C ${homedir} init --quiet
   cat > ${homedir}/.bashrc <<EOF
 export PATH=\${PATH}:${workdir}/bin
-export PS1="\${ONCONTAINER}:\\\${PWD#*} $ "
+export PS1="\${ONC_IMAGE_NAME}:\\\${PWD#*} $ "
 EOF
   cat > ${homedir}/.profile <<EOF
 export PATH=\${PATH}:${workdir}/bin
-export PS1="\${ONCONTAINER}:\\\${PWD#*} $ "
+export PS1="\${ONC_IMAGE_NAME}:\\\${PWD#*} $ "
 EOF
   git -C ${homedir} add --all
   git -C ${homedir} commit --quiet --message='Setup home directory'
@@ -68,7 +61,7 @@ docker run -it --rm --user=${userid}:${groupid} ${groups_adds} \
   --mount type=bind,src=/etc/sudoers,dst=/etc/sudoers,readonly \
   --network host \
   --env "HOME=${workdir}/onc-home" \
-  --env "ONCONTAINER=${container_label}" \
+  --env "ONC_IMAGE_NAME=${image_name}" \
   --env "ENV=${homedir}/.profile" \
   --env "SHINIT=${homedir}/.profile" \
   --env "GOPATH=${homedir}/gopath" \

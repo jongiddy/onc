@@ -64,11 +64,10 @@ Date:   Fri Jun 21 05:51:06 2019 +0100
 jon:~ $
 ```
 
-If the last name component of the Docker image starts with `.` use the
-image built from a Dockerfile:
+If the Docker image starts with `/` or `.` use the image built from a Dockerfile:
 
 ```
-jon:~ $ onc .          # build and run ./Dockerfile image
-jon:~ $ onc .build     # build and run ./Dockerfile.build image
-jon:~ $ onc ~/other/.  # build and run ~/other/Dockerfile image
+jon:~ $ onc ./Dockerfile        # build and run Dockerfile image
+jon:~ $ onc ./Dockerfile.build  # build and run Dockerfile.build image
+jon:~ $ onc ~/other/Dockerfile  # build and run /home/jon/other/Dockerfile image
 ```
