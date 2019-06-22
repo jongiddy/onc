@@ -18,9 +18,11 @@ if [[ ${image_name} == .* ]] || [[ ${image_name} == /* ]]; then
   fi
   commit_name=${Dockerfile}
   image_name=$(echo ${Dockerfile:1} | tr A-Z a-z)
+  onc_image_name=${Dockerfile/#$HOME/\~}
   docker build --file ${Dockerfile} --tag ${image_name} $(dirname ${Dockerfile})
 else
   commit_name=${image_name}
+  onc_image_name=${image_name}
 fi
 
 userid=$(id --user)
@@ -48,11 +50,11 @@ if [ ! -d ${homedir} ]; then
   git -C ${homedir} init --quiet
   cat > ${homedir}/.bashrc <<EOF
 export PATH=\${PATH}:${workdir}/bin
-export PS1="\${ONC_IMAGE_NAME}:\\\${PWD#*} $ "
+export PS1="\${ONC_IMAGE_NAME}:\${HOSTNAME}:\\\${PWD#$HOME/} $ "
 EOF
   cat > ${homedir}/.profile <<EOF
 export PATH=\${PATH}:${workdir}/bin
-export PS1="\${ONC_IMAGE_NAME}:\\\${PWD#*} $ "
+export PS1="\${ONC_IMAGE_NAME}:\${HOSTNAME}:\\\${PWD#$HOME/} $ "
 EOF
   git -C ${homedir} add --all
   git -C ${homedir} commit --quiet --message='Setup home directory'
@@ -66,13 +68,11 @@ docker run -it --rm --user=${userid}:${groupid} ${groups_adds} \
   --mount type=bind,src=/etc/group,dst=/etc/group,readonly \
   --mount type=bind,src=/etc/gshadow,dst=/etc/gshadow,readonly \
   --mount type=bind,src=/etc/sudoers,dst=/etc/sudoers,readonly \
-  --network host \
   --env "HOME=${homedir}" \
-  --env "ONC_IMAGE_NAME=${image_name}" \
+  --env "ONC_IMAGE_NAME=${onc_image_name}" \
   --env "ENV=${homedir}/.profile" \
   --env "SHINIT=${homedir}/.profile" \
   --env "GOPATH=${homedir}/gopath" \
-  --env "GOBIN=${workdir}/bin" \
 	${image_name} "${@}"
 
 rm -r ${tmpdir}
