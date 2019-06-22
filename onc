@@ -2,7 +2,30 @@
 
 set -e
 
+userid=$(id --user)
+groupid=$(id --group)
+username=$(id --user --name)
+groups_adds=
+for group in $(id --groups); do
+  if [ ${group} != ${groupid} ]; then
+    groups_adds="${groups_adds} --group-add ${group}"
+  fi
+done
+
+docker_args=
+
+arg=$1
+while [[ $1 == -* ]]; do
+  if [[ $1 == --verbose ]]; then
+    set -x
+  else
+    docker_args="${docker_args} $1"
+  fi
+  shift
+done
+
 image_name=$1
+
 if [ -z "${image_name}" ];
 then
     echo "Expecting a container image or Dockerfile" >&2
@@ -24,16 +47,6 @@ else
   commit_name=${image_name}
   onc_image_name=${image_name}
 fi
-
-userid=$(id --user)
-groupid=$(id --group)
-username=$(id --user --name)
-groups_adds=
-for group in $(id --groups); do
-  if [ ${group} != ${groupid} ]; then
-    groups_adds="${groups_adds} --group-add ${group}"
-  fi
-done
 
 tmpdir=/tmp/onc.$$
 mkdir ${tmpdir}
@@ -73,11 +86,11 @@ docker run -it --rm --user=${userid}:${groupid} ${groups_adds} \
   --env "ENV=${homedir}/.profile" \
   --env "SHINIT=${homedir}/.profile" \
   --env "GOPATH=${homedir}/gopath" \
-	${image_name} "${@}"
+	${docker_args} ${image_name} "${@}"
 
 rm -r ${tmpdir}
 
-if [ "${@}" ]; then
+if [ "${*}" ]; then
   args=$(printf '%q ' "${@}")
 else
   args=''

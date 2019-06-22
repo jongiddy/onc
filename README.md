@@ -87,3 +87,10 @@ Date:   Sat Jun 22 07:31:58 2019 +0100
 
 jon:~ $
 ```
+
+Additional Docker options can be added before the image name. The option processing
+is basic. All words before the image name must start with `-`. Use either the compact form of options or wrap options in quotes:
+```
+jon:~/demo $ onc -p8000:8000 "--mount type=bind,src=$(pwd)/cache,dst=/var/cache/nginx" nginx nginx -v
+nginx version: nginx/1.17.0
+```
