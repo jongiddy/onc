@@ -48,14 +48,11 @@ else
   onc_image_name=${image_name}
 fi
 
+workdir=$(pwd)
+
 tmpdir=/tmp/onc.$$
 mkdir ${tmpdir}
 chmod 700 ${tmpdir}
-cat > ${tmpdir}/passwd <<EOF
-${username}:x:${userid}:${groupid}:${username},,,:${homedir}:/bin/bash
-EOF
-
-workdir=$(pwd)
 
 homedir=${workdir}/onc-home
 if [ ! -d ${homedir} ]; then
@@ -72,6 +69,8 @@ EOF
   git -C ${homedir} add --all
   git -C ${homedir} commit --quiet --message='Setup home directory'
 fi
+
+sed -e "s@:${HOME}:@:${homedir}:@" /etc/passwd > ${tmpdir}/passwd
 
 docker run -it --rm --user=${userid}:${groupid} ${groups_adds} \
   --mount type=bind,src=${workdir},dst=${workdir} -w=${workdir} \
